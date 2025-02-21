@@ -11,28 +11,31 @@ playing = False
 recorded_file = ""
 record_com_port = ""
 play_com_port = ""
+loop_playback = False
 
 # Function to list available COM ports
 def list_com_ports():
     ports = serial.tools.list_ports.comports()
     return [port.device for port in ports]
 
-# Function to read data from the selected COM port and record it to a file
+# Function to read data from the selected COM port and record it to a file with timestamps
 def record_data():
     global recording
     try:
         with serial.Serial(record_com_port, 115200, timeout=1) as ser, open(recorded_file, 'w') as file:
+            start_time = time.time()
             while recording:
                 if ser.in_waiting > 0:
                     data = ser.readline().decode('utf-8').strip()
-                    file.write(data + '\n')
-                    print(f"Recorded: {data}")
-                    record_terminal.insert(tk.END, f"Recorded: {data}\n")
+                    timestamp = time.time() - start_time
+                    file.write(f"{timestamp},{data}\n")
+                    print(f"Recorded: {data} at {timestamp}")
+                    record_terminal.insert(tk.END, f"Recorded: {data} at {timestamp}\n")
                     record_terminal.see(tk.END)
     except serial.SerialException as e:
         messagebox.showerror("Error", f"Failed to read from {record_com_port}: {e}")
 
-# Function to play recorded data from a file to the selected COM port
+# Function to play recorded data from a file to the selected COM port based on timestamps
 def play_data():
     global playing
     try:
@@ -40,16 +43,20 @@ def play_data():
             while playing:
                 with open(recorded_file, 'r') as file:
                     lines = file.readlines()
+                start_time = time.time()
                 for line in lines:
                     if not playing:
                         break
-                    data = line.strip()
+                    timestamp, data = line.strip().split(',', 1)
+                    timestamp = float(timestamp)
+                    current_time = time.time() - start_time
+                    if timestamp > current_time:
+                        time.sleep(timestamp - current_time)
                     ser.write((data + '\n').encode('utf-8'))
-                    print(f"Played: {data}")
-                    play_terminal.insert(tk.END, f"Played: {data}\n")
+                    print(f"Played: {data} at {timestamp}")
+                    play_terminal.insert(tk.END, f"Played: {data} at {timestamp}\n")
                     play_terminal.see(tk.END)
-                    time.sleep(0.1)  # Adjust the delay as needed
-                if not playing:
+                if not loop_playback:
                     break
     except serial.SerialException as e:
         messagebox.showerror("Error", f"Failed to write to {play_com_port}: {e}")
@@ -107,6 +114,11 @@ def select_file():
         start_button.config(state=tk.NORMAL)
         play_button.config(state=tk.NORMAL)
 
+# Function to toggle loop playback
+def toggle_loop():
+    global loop_playback
+    loop_playback = loop_var.get()
+
 # Create the GUI
 root = tk.Tk()
 root.title("Serial Port Recorder and Player")
@@ -144,6 +156,10 @@ play_button.pack(pady=5)
 
 stop_play_button = tk.Button(root, text="Stop Playing", command=stop_playing, state=tk.DISABLED)
 stop_play_button.pack(pady=5)
+
+loop_var = tk.BooleanVar()
+loop_checkbox = tk.Checkbutton(root, text="Loop Playback", variable=loop_var, command=toggle_loop)
+loop_checkbox.pack(pady=5)
 
 record_terminal_label = tk.Label(root, text="Recording Terminal")
 record_terminal_label.pack(pady=5)
