@@ -63,6 +63,10 @@ FakeSerial is a Python application that allows you to record data from a serial 
 - **Recording Terminal**: Text area to display recorded data.
 - **Playback Terminal**: Text area to display played data.
 
+## Screenshot
+
+![FakeSerial GUI](screenshot.png)
+
 ## Code Overview
 
 - [list_com_ports()](http://_vscodecontentref_/0): Function to list available COM ports.
